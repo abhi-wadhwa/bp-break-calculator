@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BP Break Calculator</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --bg-card: #161b22;
+      --bg-input: #0d1117;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #238636;
+      --accent-hover: #2ea043;
+      --accent-glow: #3fb950;
+      --danger: #f85149;
+      --warning: #d29922;
+      --blue: #58a6ff;
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Header ────────────────────────────────────────── */
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 24px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.6rem; font-weight: 700; }
+    header h1 span { margin-right: 8px; }
+    header p { color: var(--text-muted); font-size: .9rem; margin-top: 4px; }
+
+    /* ── Layout ────────────────────────────────────────── */
+    .app { display: flex; max-width: 1400px; margin: 0 auto; gap: 0; min-height: calc(100vh - 80px); }
+
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      padding: 20px;
+      overflow-y: auto;
+      max-height: calc(100vh - 80px);
+      position: sticky;
+      top: 0;
+    }
+
+    .main { flex: 1; padding: 24px; overflow-y: auto; }
+
+    @media (max-width: 900px) {
+      .app { flex-direction: column; }
+      .sidebar { width: 100%; min-width: 0; max-height: none; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
+    /* ── Panel ─────────────────────────────────────────── */
+    .panel { margin-bottom: 20px; }
+    .panel h2 { font-size: .85rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin-bottom: 12px; }
+    .panel-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+
+    /* ── Form controls ─────────────────────────────────── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+    .tab {
+      flex: 1; padding: 8px; border: 1px solid var(--border); background: transparent;
+      color: var(--text-muted); cursor: pointer; border-radius: var(--radius);
+      font-size: .85rem; transition: all .15s;
+    }
+    .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .tab:hover:not(.active) { border-color: var(--text-muted); color: var(--text); }
+
+    label.field { display: block; margin-bottom: 10px; font-size: .85rem; color: var(--text-muted); }
+    label.field span { display: block; margin-bottom: 4px; }
+
+    input[type="text"], input[type="url"], input[type="number"], input[type="file"], select {
+      width: 100%; padding: 8px 10px; background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: .9rem;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+    .checkbox-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: .9rem; margin-bottom: 8px; }
+    .checkbox-label input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+    /* ── Buttons ────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 16px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--bg-card); color: var(--text); cursor: pointer;
+      font-size: .9rem; font-weight: 500; transition: all .15s; width: 100%;
+    }
+    .btn:hover { border-color: var(--text-muted); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+    .btn-run {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+      font-size: 1.05rem; padding: 14px 20px; margin-top: 16px;
+    }
+    .btn-run:hover:not(:disabled) { background: var(--accent-hover); box-shadow: 0 0 20px rgba(35,134,54,.3); }
+
+    /* ── Metrics row ───────────────────────────────────── */
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .metric {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px; text-align: center;
+    }
+    .metric-value { display: block; font-size: 1.5rem; font-weight: 700; color: var(--accent-glow); }
+    .metric-label { display: block; font-size: .75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+
+    /* ── Cards ──────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow);
+    }
+    .card h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
+    .card h2 span { margin-right: 6px; }
+
+    /* ── Tables ─────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    thead th {
+      position: sticky; top: 0; background: #1c2129; padding: 10px 12px;
+      text-align: left; font-weight: 600; color: var(--text-muted);
+      border-bottom: 2px solid var(--border); white-space: nowrap;
+    }
+    thead th.num { text-align: right; }
+    tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody tr:last-child td { border-bottom: none; }
+
+    /* ── Break % badge ─────────────────────────────────── */
+    .pct-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-weight: 600; font-size: .8rem; min-width: 60px; text-align: center;
+    }
+    .pct-95  { background: #2d6a4f; color: #fff; }
+    .pct-75  { background: #40916c; color: #fff; }
+    .pct-50  { background: #52b788; color: #fff; }
+    .pct-25  { background: #f4a261; color: #000; }
+    .pct-gt0 { background: #e76f51; color: #fff; }
+    .pct-0   { background: #343a40; color: #6c757d; }
+
+    /* ── Status badges ─────────────────────────────────── */
+    .status { font-weight: 600; font-size: .8rem; white-space: nowrap; }
+    .status-likely  { color: #3fb950; }
+    .status-leaning { color: #d29922; }
+    .status-bubble  { color: #f0883e; }
+    .status-needs   { color: #f85149; }
+
+    /* ── Alerts ─────────────────────────────────────────── */
+    .alert {
+      padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px;
+      font-size: .9rem; display: flex; align-items: center; gap: 8px;
+    }
+    .alert-info { background: rgba(88,166,255,.1); border: 1px solid rgba(88,166,255,.3); color: var(--blue); }
+    .alert-success { background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.3); color: var(--accent-glow); }
+    .alert-error { background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3); color: var(--danger); }
+
+    /* ── Details/Summary ───────────────────────────────── */
+    details { margin-bottom: 16px; }
+    summary {
+      cursor: pointer; padding: 10px 14px; background: var(--bg-card);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      font-size: .9rem; color: var(--text-muted); user-select: none;
+    }
+    summary:hover { color: var(--text); }
+    details[open] summary { border-radius: var(--radius) var(--radius) 0 0; }
+    details .details-body { border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); padding: 12px; max-height: 400px; overflow-y: auto; }
+
+    /* ── Novice list ────────────────────────────────────── */
+    .novice-search {
+      width: 100%; padding: 8px 10px 8px 32px; background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius); color: var(--text); font-size: .85rem; margin-top: 8px;
+      transition: border-color .15s;
+    }
+    .novice-search:focus { outline: none; border-color: var(--accent); }
+    .novice-search-wrap { position: relative; }
+    .novice-search-wrap::before {
+      content: '\1F50D'; position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+      font-size: .8rem; pointer-events: none; opacity: .5;
+    }
+    .novice-list {
+      max-height: 240px; overflow-y: auto; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 8px; margin-top: 8px;
+    }
+    .novice-list label { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: .85rem; cursor: pointer; }
+    .novice-list label:hover { color: var(--accent-glow); }
+    .novice-list label.novice-hidden { display: none; }
+    .novice-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .novice-actions button { flex: 1; padding: 6px; font-size: .75rem; }
+
+    /* ── Spinner ────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid transparent; border-top-color: currentColor;
+      border-radius: 50%; animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Welcome ───────────────────────────────────────── */
+    .welcome { max-width: 600px; margin: 40px auto; text-align: center; }
+    .welcome h2 { font-size: 1.3rem; margin-bottom: 16px; }
+    .welcome ol { text-align: left; padding-left: 20px; }
+    .welcome li { margin-bottom: 8px; color: var(--text-muted); }
+    .welcome li strong { color: var(--text); }
+    .welcome .desc { margin-top: 20px; color: var(--text-muted); font-size: .85rem; line-height: 1.7; }
+
+    /* ── Hidden ─────────────────────────────────────────── */
+    .hidden { display: none !important; }
+
+    /* ── Plotly overrides ──────────────────────────────── */
+    .js-plotly-plot .plotly .modebar { top: 4px !important; right: 4px !important; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>&#127942;</span>BP Break Calculator</h1>
+    <p>Monte Carlo break simulator for British Parliamentary debate tournaments</p>
+  </header>
+
+  <div class="app">
+    <!-- ── Sidebar ──────────────────────────────────── -->
+    <aside class="sidebar">
+      <!-- Data Source -->
+      <div class="panel">
+        <h2>Data Source</h2>
+        <div class="tabs">
+          <button class="tab active" data-tab="url" onclick="switchTab('url')">URL</button>
+          <button class="tab" data-tab="csv" onclick="switchTab('csv')">CSV Upload</button>
+        </div>
+
+        <div id="tab-url">
+          <label class="field">
+            <span>Calicotab / Tabbycat standings URL</span>
+            <input type="url" id="url-input" placeholder="https://tournament.calicotab.com/...standings/">
+          </label>
+          <button class="btn btn-primary" id="load-url-btn" onclick="loadFromUrl()">Load Standings</button>
+        </div>
+
+        <div id="tab-csv" class="hidden">
+          <label class="field">
+            <span>CSV file (columns: team, points)</span>
+            <input type="file" id="csv-input" accept=".csv" onchange="loadFromCsv()">
+          </label>
+          <label class="field">
+            <span>Rounds completed</span>
+            <input type="number" id="csv-rounds" value="5" min="1" max="20">
+          </label>
+        </div>
+
+        <div id="load-status"></div>
+      </div>
+
+      <hr class="panel-divider">
+
+      <!-- Config -->
+      <div class="panel hidden" id="config-panel">
+        <h2>Configuration</h2>
+        <label class="field">
+          <span>Total rounds in tournament</span>
+          <input type="number" id="total-rounds" value="7" min="2" max="20">
+        </label>
+        <label class="field">
+          <span>Open break size (teams)</span>
+          <input type="number" id="break-size" value="16" min="4" max="64" step="4">
+        </label>
+        <label class="field">
+          <span>Simulations</span>
+          <select id="num-sims">
+            <option value="10000">10,000</option>
+            <option value="50000">50,000</option>
+            <option value="100000" selected>100,000</option>
+            <option value="200000">200,000</option>
+            <option value="500000">500,000</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Random seed</span>
+          <select id="seed-select">
+            <option value="42">Fixed (42)</option>
+            <option value="random">Random</option>
+          </select>
+        </label>
+      </div>
+
+      <hr class="panel-divider hidden" id="novice-divider">
+
+      <!-- Novice Break -->
+      <div class="panel hidden" id="novice-panel">
+        <h2>Novice Break</h2>
+        <label class="checkbox-label">
+          <input type="checkbox" id="enable-novice" onchange="toggleNovice()">
+          Enable novice break analysis
+        </label>
+        <div id="novice-config" class="hidden">
+          <label class="field">
+            <span>Novice break size</span>
+            <input type="number" id="novice-break-size" value="4" min="1" max="16">
+          </label>
+          <div class="novice-search-wrap">
+            <input type="text" class="novice-search" id="novice-search" placeholder="Search teams..." oninput="filterNoviceList()">
+          </div>
+          <div id="novice-team-list" class="novice-list"></div>
+          <div class="novice-actions">
+            <button class="btn" onclick="selectAllNovice(true)">Select All</button>
+            <button class="btn" onclick="selectAllNovice(false)">Deselect All</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Main Content ─────────────────────────────── -->
+    <div class="main">
+      <!-- Welcome -->
+      <div id="welcome-section">
+        <div class="welcome">
+          <h2>Get started</h2>
+          <ol>
+            <li><strong>Load data</strong> from a Calicotab/Tabbycat URL or CSV</li>
+            <li><strong>Configure</strong> tournament parameters (rounds, break size)</li>
+            <li><strong>Optionally tag</strong> novice teams for novice break analysis</li>
+            <li><strong>Run simulations</strong> to see break probabilities</li>
+          </ol>
+          <div class="desc">
+            The simulator uses <strong>power-paired Monte Carlo simulation</strong>:
+            teams are sorted by points and grouped into rooms of 4, each room's placements
+            (1st&ndash;4th) are assigned randomly, and this repeats for each remaining round.
+            Results from thousands of runs give break probabilities.
+          </div>
+        </div>
+      </div>
+
+      <!-- Standings + Run -->
+      <div id="standings-section" class="hidden">
+        <div class="metrics" id="info-metrics"></div>
+
+        <details>
+          <summary>View current standings</summary>
+          <div class="details-body" id="standings-table"></div>
+        </details>
+
+        <button class="btn btn-run" id="run-btn" onclick="runSimulation()">
+          &#128640; Run Simulation
+        </button>
+      </div>
+
+      <!-- Results -->
+      <div id="results-section" class="hidden">
+        <!-- Break Line Analysis -->
+        <div class="card">
+          <h2><span>&#128202;</span>Break Line Analysis</h2>
+          <div class="metrics" id="break-metrics"></div>
+          <div id="break-line-chart"></div>
+          <details style="margin-top:16px">
+            <summary>Points needed to break</summary>
+            <div class="details-body" id="points-needed-table"></div>
+          </details>
+        </div>
+
+        <!-- Break Line Breakdown -->
+        <div class="card" id="break-detail-card" style="display:none">
+          <h2><span>&#127922;</span>Break Line Breakdown</h2>
+          <p style="color:var(--text-muted);font-size:.85rem;margin-bottom:16px">
+            When the break line falls on a given point value, multiple teams may share that score.
+            This shows how many teams on the break line actually break vs. miss out in each scenario.
+          </p>
+          <div id="break-detail-chart"></div>
+          <div id="break-detail-tables" style="margin-top:16px"></div>
+        </div>
+
+        <!-- Team Break Probabilities -->
+        <div class="card">
+          <h2><span>&#127941;</span>Team Break Probabilities</h2>
+          <div class="table-wrap" id="team-break-table" style="max-height:600px;overflow-y:auto"></div>
+          <div id="break-by-points-chart" style="margin-top:16px"></div>
+        </div>
+
+        <!-- Bubble Watch -->
+        <div class="card hidden" id="bubble-card">
+          <h2><span>&#128293;</span>Bubble Watch</h2>
+          <div class="table-wrap" id="bubble-table"></div>
+        </div>
+
+        <!-- Novice Break Analysis -->
+        <div class="card hidden" id="novice-card">
+          <h2><span>&#127793;</span>Novice Break Analysis</h2>
+          <div class="metrics" id="novice-metrics"></div>
+          <div id="novice-line-chart"></div>
+          <div class="table-wrap" id="novice-result-table" style="margin-top:16px"></div>
+          <div id="novice-stacked-chart" style="margin-top:16px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* ================================================================
+   State
+   ================================================================ */
+const state = {
+  teams: null,
+  tournamentName: '',
+  roundsCompleted: 0,
+  results: null,
+};
+
+/* ================================================================
+   Tab switching
+   ================================================================ */
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('tab-url').classList.toggle('hidden', tab !== 'url');
+  document.getElementById('tab-csv').classList.toggle('hidden', tab !== 'csv');
+}
+
+/* ================================================================
+   Load from URL
+   ================================================================ */
+async function loadFromUrl() {
+  const url = document.getElementById('url-input').value.trim();
+  if (!url) return;
+
+  const btn = document.getElementById('load-url-btn');
+  setLoading(btn, true, 'Loading...');
+  clearStatus();
+
+  try {
+    const res = await fetch('/api/scrape', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    state.teams = data.teams;
+    state.tournamentName = data.tournament_name || 'Tournament';
+    state.roundsCompleted = data.rounds_completed;
+
+    showStatus('success', `Loaded ${data.teams.length} teams from ${state.tournamentName} (${data.rounds_completed} rounds)`);
+    onDataLoaded();
+  } catch (err) {
+    showStatus('error', `Scraping failed: ${err.message}`);
+  } finally {
+    setLoading(btn, false, 'Load Standings');
+  }
+}
+
+/* ================================================================
+   Load from CSV (client-side)
+   ================================================================ */
+function loadFromCsv() {
+  const fileInput = document.getElementById('csv-input');
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  clearStatus();
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      const lines = text.trim().split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+      const teamIdx = headers.indexOf('team');
+      const ptsIdx = headers.indexOf('points');
+
+      if (teamIdx === -1 || ptsIdx === -1) throw new Error("CSV must have 'team' and 'points' columns");
+
+      const teams = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^['"]|['"]$/g, ''));
+        if (cols.length < 2 || !cols[teamIdx]) continue;
+        teams.push({ team: cols[teamIdx], points: parseInt(cols[ptsIdx]) || 0 });
+      }
+      teams.sort((a, b) => b.points - a.points);
+
+      state.teams = teams;
+      state.tournamentName = file.name.replace(/\.csv$/i, '');
+      state.roundsCompleted = parseInt(document.getElementById('csv-rounds').value) || 5;
+
+      showStatus('success', `Loaded ${teams.length} teams from CSV`);
+      onDataLoaded();
+    } catch (err) {
+      showStatus('error', `CSV parse error: ${err.message}`);
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ================================================================
+   After data loaded
+   ================================================================ */
+function onDataLoaded() {
+  // Update config defaults
+  const rc = state.roundsCompleted;
+  const totalInput = document.getElementById('total-rounds');
+  totalInput.min = rc + 1;
+  totalInput.value = Math.max(parseInt(totalInput.value), rc + 2);
+
+  // Show panels
+  document.getElementById('welcome-section').classList.add('hidden');
+  document.getElementById('standings-section').classList.remove('hidden');
+  document.getElementById('config-panel').classList.remove('hidden');
+  document.getElementById('novice-panel').classList.remove('hidden');
+  document.getElementById('novice-divider').classList.remove('hidden');
+  document.getElementById('results-section').classList.add('hidden');
+
+  renderInfoMetrics();
+  renderStandingsTable();
+  renderNoviceTeamList();
+}
+
+/* ================================================================
+   Run simulation
+   ================================================================ */
+async function runSimulation() {
+  if (!state.teams) return;
+
+  const btn = document.getElementById('run-btn');
+  setLoading(btn, true, 'Simulating...');
+
+  const totalRounds = parseInt(document.getElementById('total-rounds').value);
+  const breakSize = parseInt(document.getElementById('break-size').value);
+  const numSims = parseInt(document.getElementById('num-sims').value);
+  const seedVal = document.getElementById('seed-select').value;
+  const seed = seedVal === 'random' ? null : parseInt(seedVal);
+
+  const noviceTeams = [];
+  if (document.getElementById('enable-novice').checked) {
+    document.querySelectorAll('#novice-team-list input:checked').forEach(cb => {
+      noviceTeams.push(cb.value);
+    });
+  }
+  const noviceBreakSize = parseInt(document.getElementById('novice-break-size').value) || 4;
+
+  try {
+    const res = await fetch('/api/simulate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        teams: state.teams,
+        rounds_remaining: totalRounds - state.roundsCompleted,
+        break_size: breakSize,
+        num_sims: numSims,
+        seed: seed,
+        novice_teams: noviceTeams,
+        novice_break_size: noviceBreakSize,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    state.results = data;
+    renderResults();
+    document.getElementById('results-section').classList.remove('hidden');
+    document.getElementById('results-section').scrollIntoView({ behavior: 'smooth' });
+  } catch (err) {
+    showStatus('error', `Simulation failed: ${err.message}`);
+  } finally {
+    setLoading(btn, false, '\u{1F680} Run Simulation');
+  }
+}
+
+/* ================================================================
+   Render: info metrics
+   ================================================================ */
+function renderInfoMetrics() {
+  const totalRounds = parseInt(document.getElementById('total-rounds').value);
+  const breakSize = parseInt(document.getElementById('break-size').value);
+  const el = document.getElementById('info-metrics');
+  el.innerHTML = `
+    <div class="metric"><span class="metric-value">${state.teams.length}</span><span class="metric-label">Teams</span></div>
+    <div class="metric"><span class="metric-value">${state.roundsCompleted}</span><span class="metric-label">Rounds Done</span></div>
+    <div class="metric"><span class="metric-value">${totalRounds - state.roundsCompleted}</span><span class="metric-label">Rounds Left</span></div>
+    <div class="metric"><span class="metric-value">${breakSize}</span><span class="metric-label">Break Size</span></div>
+  `;
+}
+
+/* ================================================================
+   Render: standings table
+   ================================================================ */
+function renderStandingsTable() {
+  const el = document.getElementById('standings-table');
+  let html = '<table><thead><tr><th class="num">#</th><th>Team</th><th class="num">Points</th></tr></thead><tbody>';
+  state.teams.forEach((t, i) => {
+    html += `<tr><td class="num">${i + 1}</td><td>${esc(t.team)}</td><td class="num">${t.points}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+/* ================================================================
+   Render: novice team list
+   ================================================================ */
+function renderNoviceTeamList() {
+  const el = document.getElementById('novice-team-list');
+  if (!state.teams) { el.innerHTML = ''; return; }
+  let html = '';
+  state.teams.forEach(t => {
+    html += `<label><input type="checkbox" value="${esc(t.team)}"> ${esc(t.team)} (${t.points})</label>`;
+  });
+  el.innerHTML = html;
+}
+
+function toggleNovice() {
+  const on = document.getElementById('enable-novice').checked;
+  document.getElementById('novice-config').classList.toggle('hidden', !on);
+}
+
+function selectAllNovice(checked) {
+  document.querySelectorAll('#novice-team-list label:not(.novice-hidden) input').forEach(cb => cb.checked = checked);
+}
+
+function filterNoviceList() {
+  const query = document.getElementById('novice-search').value.toLowerCase();
+  document.querySelectorAll('#novice-team-list label').forEach(label => {
+    const name = label.textContent.toLowerCase();
+    label.classList.toggle('novice-hidden', query && !name.includes(query));
+  });
+}
+
+/* ================================================================
+   Render: results
+   ================================================================ */
+function renderResults() {
+  const r = state.results;
+  renderBreakLineAnalysis(r);
+  renderBreakLineDetail(r);
+  renderTeamBreakTable(r);
+  renderBubbleWatch(r);
+  renderBreakByPointsChart(r);
+  if (r.novice_results && r.novice_results.length > 0) {
+    renderNoviceAnalysis(r);
+    document.getElementById('novice-card').classList.remove('hidden');
+  } else {
+    document.getElementById('novice-card').classList.add('hidden');
+  }
+}
+
+/* ================================================================
+   Render: break line analysis
+   ================================================================ */
+function renderBreakLineAnalysis(r) {
+  const dist = r.break_line_dist;
+  const pts = Object.keys(dist).map(Number).sort((a, b) => a - b);
+  const counts = pts.map(p => dist[String(p)]);
+  const numSims = r.num_sims;
+  const pcts = counts.map(c => c / numSims * 100);
+
+  const best = Math.min(...pts);
+  const worst = Math.max(...pts);
+  const mode = pts[pcts.indexOf(Math.max(...pcts))];
+
+  // Metrics
+  document.getElementById('break-metrics').innerHTML = `
+    <div class="metric"><span class="metric-value">${best}</span><span class="metric-label">Best Case</span></div>
+    <div class="metric"><span class="metric-value">${mode}</span><span class="metric-label">Most Likely</span></div>
+    <div class="metric"><span class="metric-value">${worst}</span><span class="metric-label">Worst Case</span></div>
+  `;
+
+  // Chart
+  const breakSize = parseInt(document.getElementById('break-size').value);
+  Plotly.newPlot('break-line-chart', [{
+    x: pts,
+    y: pcts,
+    type: 'bar',
+    text: pcts.map(p => p.toFixed(1) + '%'),
+    textposition: 'outside',
+    marker: { color: pcts.map(p => `rgba(63,185,80,${0.3 + p / Math.max(...pcts) * 0.7})`) },
+    hovertemplate: '%{x} pts: %{y:.1f}%<extra></extra>',
+  }], {
+    title: { text: `Break Line Distribution (${breakSize}th place after all rounds)`, font: { color: '#e6edf3', size: 14 } },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    font: { color: '#8b949e' },
+    xaxis: { title: 'Points', gridcolor: '#21262d', dtick: 1 },
+    yaxis: { title: 'Probability (%)', gridcolor: '#21262d' },
+    margin: { t: 50, b: 50, l: 50, r: 20 },
+  }, { responsive: true, displayModeBar: false });
+
+  // Points needed table
+  let html = '<table><thead><tr><th class="num">Points</th><th class="num">Breaks in % of scenarios</th></tr></thead><tbody>';
+  let cumulative = 0;
+  pts.forEach(p => {
+    cumulative += dist[String(p)];
+    const pct = cumulative / numSims * 100;
+    html += `<tr><td class="num">${p}</td><td class="num">${pct.toFixed(1)}%</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('points-needed-table').innerHTML = html;
+}
+
+/* ================================================================
+   Render: break line detail (breakdown of who breaks on the line)
+   ================================================================ */
+function renderBreakLineDetail(r) {
+  const detail = r.break_line_detail;
+  const card = document.getElementById('break-detail-card');
+  if (!detail || Object.keys(detail).length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+
+  const numSims = r.num_sims;
+  const allPts = Object.keys(detail).map(Number).sort((a, b) => a - b);
+
+  const tableHtml = [];
+
+  allPts.forEach(pts => {
+    const scenarios = detail[String(pts)];
+    const totalForPts = scenarios.reduce((s, sc) => s + sc.count, 0);
+    const ptsLabel = pts + ' pts';
+
+    // Per-point-value table
+    let tbl = `<details style="margin-bottom:12px"><summary>${ptsLabel} — ${(totalForPts / numSims * 100).toFixed(1)}% of simulations</summary>`;
+    tbl += `<div class="details-body"><table><thead><tr><th class="num">Break from line</th><th class="num">Miss from line</th><th class="num">Total on line</th><th class="num">Frequency</th><th class="num">% of sims at ${pts}pts</th></tr></thead><tbody>`;
+
+    scenarios.forEach(sc => {
+      const pct = (sc.count / totalForPts * 100).toFixed(1);
+      const globalPct = (sc.count / numSims * 100).toFixed(1);
+      tbl += `<tr>
+        <td class="num" style="color:var(--accent-glow)">${sc.breaking}</td>
+        <td class="num" style="color:var(--danger)">${sc.not_breaking}</td>
+        <td class="num">${sc.breaking + sc.not_breaking}</td>
+        <td class="num">${globalPct}%</td>
+        <td class="num">${pct}%</td>
+      </tr>`;
+    });
+    tbl += '</tbody></table></div></details>';
+    tableHtml.push(tbl);
+  });
+
+  document.getElementById('break-detail-tables').innerHTML = tableHtml.join('');
+
+  // Stacked bar chart: x = break line points, stacked by scenario type
+  // Group scenarios into: "all break" (not_breaking=0), "some miss" (not_breaking>0)
+  const xLabels = allPts.map(p => p + ' pts');
+  const allBreakPcts = [];
+  const someMissPcts = [];
+
+  allPts.forEach(pts => {
+    const scenarios = detail[String(pts)];
+    let allBreak = 0;
+    let someMiss = 0;
+    scenarios.forEach(sc => {
+      if (sc.not_breaking === 0) allBreak += sc.count;
+      else someMiss += sc.count;
+    });
+    allBreakPcts.push(allBreak / numSims * 100);
+    someMissPcts.push(someMiss / numSims * 100);
+  });
+
+  Plotly.newPlot('break-detail-chart', [
+    {
+      name: 'All teams on line break',
+      x: xLabels,
+      y: allBreakPcts,
+      type: 'bar',
+      marker: { color: '#2d6a4f' },
+      hovertemplate: '%{x}: %{y:.1f}%<extra>All on line break</extra>',
+    },
+    {
+      name: 'Some teams on line miss out',
+      x: xLabels,
+      y: someMissPcts,
+      type: 'bar',
+      marker: { color: '#e76f51' },
+      hovertemplate: '%{x}: %{y:.1f}%<extra>Some miss out</extra>',
+    },
+  ], {
+    barmode: 'stack',
+    title: { text: 'Break Line Contention — Best vs Worst Case', font: { color: '#e6edf3', size: 14 } },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    font: { color: '#8b949e' },
+    xaxis: { title: 'Break Line Points', gridcolor: '#21262d' },
+    yaxis: { title: 'Probability (%)', gridcolor: '#21262d' },
+    margin: { t: 50, b: 60, l: 50, r: 20 },
+    legend: { orientation: 'h', y: -0.2 },
+  }, { responsive: true, displayModeBar: false });
+}
+
+/* ================================================================
+   Render: team break probabilities
+   ================================================================ */
+function renderTeamBreakTable(r) {
+  const teams = r.team_results;
+  let html = '<table><thead><tr><th class="num">#</th><th>Team</th><th class="num">Pts</th><th class="num">Avg</th><th class="num">Min</th><th class="num">Max</th><th class="num">Break %</th></tr></thead><tbody>';
+  teams.forEach((t, i) => {
+    const badge = pctBadge(t.break_pct);
+    html += `<tr>
+      <td class="num">${i + 1}</td>
+      <td>${esc(t.team)}</td>
+      <td class="num">${t.current_pts}</td>
+      <td class="num">${t.avg_final}</td>
+      <td class="num">${t.min}</td>
+      <td class="num">${t.max}</td>
+      <td class="num">${badge}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('team-break-table').innerHTML = html;
+}
+
+/* ================================================================
+   Render: break probability by current points chart
+   ================================================================ */
+function renderBreakByPointsChart(r) {
+  const byPts = {};
+  r.team_results.forEach(t => {
+    if (!byPts[t.current_pts]) byPts[t.current_pts] = [];
+    byPts[t.current_pts].push(t.break_pct);
+  });
+
+  const pts = Object.keys(byPts).map(Number).sort((a, b) => a - b);
+  const avgs = pts.map(p => {
+    const arr = byPts[p];
+    return arr.reduce((s, v) => s + v, 0) / arr.length;
+  });
+
+  const colors = avgs.map(v => {
+    if (v >= 75) return '#2d6a4f';
+    if (v >= 50) return '#52b788';
+    if (v >= 25) return '#f4a261';
+    if (v > 0) return '#e76f51';
+    return '#343a40';
+  });
+
+  Plotly.newPlot('break-by-points-chart', [{
+    x: pts,
+    y: avgs,
+    type: 'bar',
+    text: avgs.map(v => v.toFixed(1) + '%'),
+    textposition: 'outside',
+    marker: { color: colors },
+    hovertemplate: '%{x} pts: %{y:.1f}%<extra></extra>',
+  }], {
+    title: { text: 'Average Break Probability by Current Points', font: { color: '#e6edf3', size: 14 } },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    font: { color: '#8b949e' },
+    xaxis: { title: 'Current Points', gridcolor: '#21262d', dtick: 1 },
+    yaxis: { title: 'Break %', gridcolor: '#21262d', range: [0, Math.min(110, Math.max(...avgs) + 15)] },
+    margin: { t: 50, b: 50, l: 50, r: 20 },
+  }, { responsive: true, displayModeBar: false });
+}
+
+/* ================================================================
+   Render: bubble watch
+   ================================================================ */
+function renderBubbleWatch(r) {
+  const bubble = r.team_results.filter(t => t.break_pct > 5 && t.break_pct < 95);
+  const card = document.getElementById('bubble-card');
+
+  if (bubble.length === 0) {
+    card.classList.add('hidden');
+    return;
+  }
+  card.classList.remove('hidden');
+
+  let html = '<table><thead><tr><th>Team</th><th class="num">Pts</th><th class="num">Break %</th><th>Status</th></tr></thead><tbody>';
+  bubble.forEach(t => {
+    let status, cls;
+    if (t.break_pct >= 75) { status = 'LIKELY IN'; cls = 'status-likely'; }
+    else if (t.break_pct >= 50) { status = 'LEANING IN'; cls = 'status-leaning'; }
+    else if (t.break_pct >= 25) { status = 'ON BUBBLE'; cls = 'status-bubble'; }
+    else { status = 'NEEDS HELP'; cls = 'status-needs'; }
+
+    html += `<tr>
+      <td>${esc(t.team)}</td>
+      <td class="num">${t.current_pts}</td>
+      <td class="num">${pctBadge(t.break_pct)}</td>
+      <td><span class="status ${cls}">${status}</span></td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('bubble-table').innerHTML = html;
+}
+
+/* ================================================================
+   Render: novice analysis
+   ================================================================ */
+function renderNoviceAnalysis(r) {
+  const dist = r.novice_break_line_dist;
+  const numSims = r.num_sims;
+  const pts = Object.keys(dist).map(Number).sort((a, b) => a - b);
+
+  if (pts.length === 0) return;
+
+  const counts = pts.map(p => dist[String(p)]);
+  const pcts = counts.map(c => c / numSims * 100);
+  const best = Math.min(...pts);
+  const worst = Math.max(...pts);
+  const mode = pts[pcts.indexOf(Math.max(...pcts))];
+
+  // Metrics
+  document.getElementById('novice-metrics').innerHTML = `
+    <div class="metric"><span class="metric-value">${best}</span><span class="metric-label">Best Case</span></div>
+    <div class="metric"><span class="metric-value">${mode}</span><span class="metric-label">Most Likely</span></div>
+    <div class="metric"><span class="metric-value">${worst}</span><span class="metric-label">Worst Case</span></div>
+  `;
+
+  // Line chart
+  Plotly.newPlot('novice-line-chart', [{
+    x: pts,
+    y: pcts,
+    type: 'bar',
+    text: pcts.map(p => p.toFixed(1) + '%'),
+    textposition: 'outside',
+    marker: { color: pcts.map(p => `rgba(149,109,214,${0.3 + p / Math.max(...pcts) * 0.7})`) },
+    hovertemplate: '%{x} pts: %{y:.1f}%<extra></extra>',
+  }], {
+    title: { text: 'Novice Break Line Distribution', font: { color: '#e6edf3', size: 14 } },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    font: { color: '#8b949e' },
+    xaxis: { title: 'Points', gridcolor: '#21262d', dtick: 1 },
+    yaxis: { title: 'Probability (%)', gridcolor: '#21262d' },
+    margin: { t: 50, b: 50, l: 50, r: 20 },
+  }, { responsive: true, displayModeBar: false });
+
+  // Novice table
+  const nr = r.novice_results;
+  let html = '<table><thead><tr><th>Team</th><th class="num">Pts</th><th class="num">Avg</th><th class="num">Open %</th><th class="num">Novice %</th><th class="num">Any %</th></tr></thead><tbody>';
+  nr.forEach(t => {
+    html += `<tr>
+      <td>${esc(t.team)}</td>
+      <td class="num">${t.current_pts}</td>
+      <td class="num">${t.avg_final}</td>
+      <td class="num">${t.open_break_pct.toFixed(1)}%</td>
+      <td class="num">${t.novice_break_pct.toFixed(1)}%</td>
+      <td class="num">${pctBadge(t.any_break_pct)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('novice-result-table').innerHTML = html;
+
+  // Stacked bar chart
+  Plotly.newPlot('novice-stacked-chart', [
+    {
+      name: 'Open Break',
+      x: nr.map(t => t.team),
+      y: nr.map(t => t.open_break_pct),
+      type: 'bar',
+      marker: { color: '#2d6a4f' },
+    },
+    {
+      name: 'Novice Break',
+      x: nr.map(t => t.team),
+      y: nr.map(t => t.novice_break_pct),
+      type: 'bar',
+      marker: { color: '#95d5b2' },
+    },
+    {
+      name: 'No Break',
+      x: nr.map(t => t.team),
+      y: nr.map(t => 100 - t.any_break_pct),
+      type: 'bar',
+      marker: { color: '#30363d' },
+    },
+  ], {
+    barmode: 'stack',
+    title: { text: 'Novice Teams \u2014 Break Pathway Breakdown', font: { color: '#e6edf3', size: 14 } },
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    font: { color: '#8b949e' },
+    xaxis: { tickangle: -45, gridcolor: '#21262d' },
+    yaxis: { title: 'Probability (%)', gridcolor: '#21262d' },
+    margin: { t: 50, b: 100, l: 50, r: 20 },
+    legend: { orientation: 'h', y: -0.25 },
+  }, { responsive: true, displayModeBar: false });
+}
+
+/* ================================================================
+   Helpers
+   ================================================================ */
+function pctBadge(pct) {
+  let cls;
+  if (pct >= 95) cls = 'pct-95';
+  else if (pct >= 75) cls = 'pct-75';
+  else if (pct >= 50) cls = 'pct-50';
+  else if (pct >= 25) cls = 'pct-25';
+  else if (pct > 0) cls = 'pct-gt0';
+  else cls = 'pct-0';
+  return `<span class="pct-badge ${cls}">${pct.toFixed(1)}%</span>`;
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function setLoading(btn, loading, text) {
+  btn.disabled = loading;
+  btn.innerHTML = loading ? `<span class="spinner"></span> ${text}` : text;
+}
+
+function showStatus(type, msg) {
+  const el = document.getElementById('load-status');
+  el.innerHTML = `<div class="alert alert-${type}" style="margin-top:12px">${esc(msg)}</div>`;
+}
+
+function clearStatus() {
+  document.getElementById('load-status').innerHTML = '';
+}
+
+/* Update metrics when config changes */
+document.getElementById('total-rounds').addEventListener('change', renderInfoMetrics);
+document.getElementById('break-size').addEventListener('change', renderInfoMetrics);
+
+/* Enter key triggers load */
+document.getElementById('url-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') loadFromUrl();
+});
+</script>
+</body>
+</html>
